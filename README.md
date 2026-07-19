@@ -5,19 +5,19 @@ mengikuti format Form Laporan Program Kerja Divisi (kolom Prosentase A/Kuantitat
 B/Kualitatif, Keterangan, Kendala, Solusi/Langkah Konkrit, serta Nama Santri yang Tidak
 Mengikuti Kegiatan).
 
-## Cara Menjalankan
+## Alamat Aplikasi (Online)
 
-Aplikasi ini statis — tidak butuh instalasi apa pun.
+**https://faiqhimam95.github.io/evaluasi-ja/**
 
-**Cara termudah:** klik dua kali `index.html` (terbuka di Chrome/Edge).
+Aplikasi di-hosting di GitHub Pages (repo `faiqhimam95/evaluasi-ja`) dan seluruh
+data tersimpan terpusat di **Supabase** — semua koordinator dapat mengisi dari
+HP/laptop masing-masing dan datanya langsung tergabung.
 
-**Lewat server lokal** (disarankan bila ingin diakses HP lain dalam satu Wi-Fi):
+Untuk pengembangan lokal: `npx http-server "E:\Evaluasi JA" -p 8347` lalu buka
+`http://localhost:8347`. Setiap perubahan kode di-push ke branch `main` akan
+otomatis ter-deploy ulang oleh GitHub Pages (± 1 menit).
 
-```
-npx http-server "E:\Evaluasi JA" -p 8347
-```
-
-lalu buka `http://localhost:8347` — atau dari HP: `http://<IP-laptop>:8347`.
+Skema database ada di `supabase-setup.sql` (sudah dijalankan di project Supabase).
 
 ## Akun & Hak Akses
 
@@ -72,12 +72,9 @@ Akun bawaan (kata sandi awal = nama akun + 2026, **segera ganti** lewat menu aku
   PDF") dengan tata letak menyerupai form kertas, termasuk kolom tanda tangan.
 - **💾 Data**: ekspor/impor JSON untuk cadangan atau pindah perangkat.
 
-## Penting: Penyimpanan Data
+## Penyimpanan Data
 
-Data tersimpan di **browser masing-masing perangkat** (localStorage). Artinya:
-
-- Data laptop A tidak otomatis muncul di laptop B / HP.
-- Jangan hapus data browsing (site data) untuk situs ini.
-- Rutin lakukan **Ekspor Data** dari menu 💾 Data sebagai cadangan.
-- Untuk menggabungkan laporan antar perangkat, gunakan ekspor → impor,
-  atau jalankan lewat satu server yang diakses bersama dari HP koordinator.
+Seluruh data (laporan, program, akun, catatan) tersimpan terpusat di **Supabase**,
+sehingga otomatis tergabung dari semua perangkat. Fitur **Ekspor Data** (menu
+💾 Data, setelah login) mengunduh cadangan lengkap dari server — lakukan rutin
+sebagai jaga-jaga. Impor cadangan hanya bisa dilakukan Admin.
