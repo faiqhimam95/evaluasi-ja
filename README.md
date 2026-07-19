@@ -7,11 +7,14 @@ Mengikuti Kegiatan).
 
 ## Alamat Aplikasi (Online)
 
-**https://faiqhimam95.github.io/evaluasi-ja/**
+**https://evaluasi-ja.vercel.app** (utama, Vercel — akun `agfahimam-1153`)
 
-Aplikasi di-hosting di GitHub Pages (repo `faiqhimam95/evaluasi-ja`) dan seluruh
-data tersimpan terpusat di **Supabase** — semua koordinator dapat mengisi dari
-HP/laptop masing-masing dan datanya langsung tergabung.
+Cadangan: https://faiqhimam95.github.io/evaluasi-ja/ (GitHub Pages)
+
+Kode ada di repo GitHub `faiqhimam95/evaluasi-ja`; push ke branch `main` otomatis
+ter-deploy ke keduanya. Seluruh data tersimpan terpusat di **Supabase** — semua
+koordinator dapat mengisi dari HP/laptop masing-masing dan datanya langsung
+tergabung.
 
 Untuk pengembangan lokal: `npx http-server "E:\Evaluasi JA" -p 8347` lalu buka
 `http://localhost:8347`. Setiap perubahan kode di-push ke branch `main` akan
