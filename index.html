@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evaluasi Mingguan — PP Jalaluddin Ar-Rumi Jatisari</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕌</text></svg>">
+</head>
+<body>
+  <header class="topbar no-print">
+    <div class="topbar-inner">
+      <a href="#/" class="brand">
+        <span class="brand-icon">🕌</span>
+        <span class="brand-text">
+          <strong>Evaluasi Mingguan</strong>
+          <small>Pondok Pesantren Jalaluddin Ar-Rumi Jatisari</small>
+        </span>
+      </a>
+      <nav class="mainnav">
+        <a href="#/" data-nav="dashboard">Dashboard</a>
+        <a href="#/evaluasi" data-nav="evaluasi">Evaluasi Mingguan</a>
+        <button id="btn-backup" class="btn btn-ghost" title="Ekspor / impor data" hidden>💾 Data</button>
+        <button id="btn-auth" class="btn btn-ghost">🔑 Masuk</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="app" class="no-print"></main>
+
+  <div id="print-area" class="print-only"></div>
+
+  <dialog id="login-dialog" class="no-print">
+    <h3>Masuk Akun Koordinator</h3>
+    <p>Pengisian laporan hanya dapat dilakukan oleh koordinator divisi yang bersangkutan. Tanpa masuk, laporan tetap dapat dilihat sebagai data statis.</p>
+    <form id="login-form" method="dialog">
+      <div class="field" style="margin-bottom:10px">
+        <label for="login-user">Akun</label>
+        <select id="login-user" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit"></select>
+      </div>
+      <div class="field">
+        <label for="login-pass">Kata Sandi</label>
+        <input type="password" id="login-pass" autocomplete="current-password" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
+      </div>
+      <p id="login-error" style="color:var(--danger);font-size:.85rem;margin:8px 0 0" hidden>Kata sandi salah.</p>
+      <div class="dialog-actions">
+        <button type="submit" class="btn btn-primary" id="btn-login">Masuk</button>
+        <button type="button" class="btn btn-ghost" id="btn-login-close">Batal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="account-dialog" class="no-print">
+    <h3 id="account-title">Akun</h3>
+    <p id="account-info"></p>
+    <div class="field" style="margin-bottom:8px">
+      <label for="chg-old">Kata Sandi Lama</label>
+      <input type="password" id="chg-old" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
+    </div>
+    <div class="field">
+      <label for="chg-new">Kata Sandi Baru (min. 5 karakter)</label>
+      <input type="password" id="chg-new" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
+    </div>
+    <p id="chg-msg" style="font-size:.85rem;margin:8px 0 0" hidden></p>
+    <div id="admin-reset" hidden>
+      <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+      <h3 style="font-size:1rem">Reset Kata Sandi Akun (Admin)</h3>
+      <div class="field" style="margin-bottom:8px">
+        <label for="reset-user">Akun</label>
+        <select id="reset-user" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit"></select>
+      </div>
+      <div class="field">
+        <label for="reset-pass">Kata Sandi Baru</label>
+        <input type="password" id="reset-pass" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
+      </div>
+      <div class="dialog-actions" style="margin-top:8px">
+        <button class="btn btn-outline" id="btn-reset-pass">Reset Kata Sandi</button>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-primary" id="btn-change-pass">Simpan Kata Sandi Baru</button>
+      <button class="btn btn-danger" id="btn-logout">Keluar (Logout)</button>
+      <button class="btn btn-ghost" id="btn-account-close">Tutup</button>
+    </div>
+  </dialog>
+
+  <dialog id="backup-dialog" class="no-print">
+    <h3>Cadangkan / Pulihkan Data</h3>
+    <p>Data aplikasi tersimpan di browser ini. Ekspor secara berkala agar tidak hilang, atau impor untuk memindahkan data antar perangkat.</p>
+    <div class="dialog-actions">
+      <button id="btn-export" class="btn btn-primary">⬇️ Ekspor Data (JSON)</button>
+      <label class="btn btn-outline" for="file-import" id="lbl-import">⬆️ Impor Data (khusus Admin)</label>
+      <input type="file" id="file-import" accept="application/json" hidden>
+      <button id="btn-close-dialog" class="btn btn-ghost">Tutup</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast no-print" hidden></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
