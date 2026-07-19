@@ -314,7 +314,7 @@ async function flushSync() {
     await Promise.all(jobs.map((j) => j()));
     const h = $("#save-hint");
     if (h) {
-      h.textContent = "✓ Tersimpan ke server";
+      h.textContent = "Tersimpan";
       h.classList.add("saved");
     }
   } catch (e) {
