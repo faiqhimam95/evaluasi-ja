@@ -946,11 +946,76 @@ function bindHarian(div, route) {
         setEntryField(wk, div.id, di, progId, inp.dataset.field, v);
       });
     });
+    // isian nama santri memakai format daftar bernomor otomatis
+    const absenTa = $('textarea[data-field="absen"]', card);
+    if (absenTa) setupNumberedList(absenTa);
   });
 
   const btnPrint = $("#btn-print-daily");
   if (btnPrint)
     btnPrint.addEventListener("click", () => printDaily(div, wk, di));
+}
+
+/* Susun ulang teks menjadi daftar bernomor "1. Nama" per baris */
+function renumberList(text) {
+  let n = 0;
+  return text
+    .split("\n")
+    .map((l) => {
+      const t = l
+        .replace(/^\s*\d+[.)]\s*/, "")
+        .trim();
+      if (!t) return null;
+      n++;
+      return n + ". " + t;
+    })
+    .filter((l) => l !== null)
+    .join("\n");
+}
+
+/* Textarea dengan penomoran otomatis: Enter membuat nomor berikutnya,
+   penomoran dirapikan ulang saat keluar dari isian. */
+function setupNumberedList(ta) {
+  ta.addEventListener("focus", () => {
+    if (!ta.value.trim()) {
+      ta.value = "1. ";
+      ta.setSelectionRange(3, 3);
+    }
+  });
+  ta.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const MARK = "\u0000";
+    const combined =
+      ta.value.slice(0, ta.selectionStart) +
+      "\n" +
+      MARK +
+      ta.value.slice(ta.selectionEnd);
+    let n = 0;
+    let cursorPos = 0;
+    const out = [];
+    for (const line of combined.split("\n")) {
+      const isCursor = line.includes(MARK);
+      const t = line
+        .replace(MARK, "")
+        .replace(/^\s*\d+[.)]\s*/, "")
+        .trim();
+      if (!t && !isCursor) continue;
+      n++;
+      out.push(n + ". " + t);
+      if (isCursor) cursorPos = out.join("\n").length;
+    }
+    ta.value = out.join("\n");
+    ta.setSelectionRange(cursorPos, cursorPos);
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  ta.addEventListener("blur", () => {
+    const v = renumberList(ta.value);
+    if (v !== ta.value) {
+      ta.value = v;
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  });
 }
 
 /* ----- Tab: Rekap Mingguan ----- */
@@ -1503,19 +1568,16 @@ function printEvaluasi(weekKey) {
   `);
 }
 
-/* ---------------- Global (auth, backup, dialog) ---------------- */
+/* ---------------- Global (auth, dialog) ---------------- */
 
 function updateAuthUI() {
   const s = session();
   const btnAuth = $("#btn-auth");
-  const btnBackup = $("#btn-backup");
   if (s) {
     const acc = state.accounts[s.id];
     btnAuth.textContent = "👤 " + (acc ? acc.label : s.user);
-    btnBackup.hidden = false;
   } else {
     btnAuth.textContent = "🔑 Masuk";
-    btnBackup.hidden = true;
   }
 }
 
@@ -1654,143 +1716,4 @@ function bindAuth() {
 
 function bindGlobal() {
   bindAuth();
-  const dialog = $("#backup-dialog");
-  $("#btn-backup").addEventListener("click", () => {
-    $("#lbl-import").hidden = !isAdmin();
-    dialog.showModal();
-  });
-  $("#btn-close-dialog").addEventListener("click", () => dialog.close());
-
-  $("#btn-export").addEventListener("click", async () => {
-    try {
-      toast("Mengambil seluruh data dari server…");
-      const [divisions, entries, weekNotes, pengasuhNotes, accounts] =
-        await Promise.all([
-          sb("/divisions?select=*"),
-          sb("/entries?select=*"),
-          sb("/week_notes?select=*"),
-          sb("/pengasuh_notes?select=*"),
-          sb("/accounts?select=*"),
-        ]);
-      const backup = {
-        format: "evaluasi-ja-supabase-v1",
-        exportedAt: new Date().toISOString(),
-        divisions,
-        entries,
-        weekNotes,
-        pengasuhNotes,
-        accounts,
-      };
-      const blob = new Blob([JSON.stringify(backup, null, 2)], {
-        type: "application/json",
-      });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "evaluasi-ja-backup-" + todayISO() + ".json";
-      a.click();
-      URL.revokeObjectURL(a.href);
-      toast("Data berhasil diekspor");
-    } catch (err) {
-      alert("Gagal mengambil data dari server: " + err.message);
-    }
-  });
-
-  $("#file-import").addEventListener("change", (e) => {
-    if (!isAdmin()) {
-      toast("Impor data hanya untuk Admin");
-      e.target.value = "";
-      return;
-    }
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const data = JSON.parse(reader.result);
-        const rows = backupToRows(data);
-        if (
-          !confirm(
-            "Impor akan menimpa data server dengan isi cadangan ini " +
-              `(${rows.entries.length} entri laporan). Lanjutkan?`,
-          )
-        )
-          return;
-        toast("Mengunggah data ke server…");
-        if (rows.divisions.length) await sbUpsert("divisions", rows.divisions, "id");
-        if (rows.accounts.length) await sbUpsert("accounts", rows.accounts, "id");
-        if (rows.weekNotes.length) await sbUpsert("week_notes", rows.weekNotes, "week_key");
-        if (rows.pengasuhNotes.length)
-          await sbUpsert("pengasuh_notes", rows.pengasuhNotes, "week_key,div_id,prog_id");
-        for (let i = 0; i < rows.entries.length; i += 500) {
-          await sbUpsert(
-            "entries",
-            rows.entries.slice(i, i + 500),
-            "week_key,div_id,day_idx,prog_id",
-          );
-        }
-        dialog.close();
-        // muat ulang semuanya dari server
-        loadedWeeks.clear();
-        await initData();
-        await render();
-        toast("Data berhasil diimpor ke server");
-      } catch (err) {
-        alert("File tidak valid / gagal impor: " + err.message);
-      }
-      e.target.value = "";
-    };
-    reader.readAsText(file);
-  });
-}
-
-/* Konversi file cadangan (format lama localStorage ATAU format baru) menjadi
-   baris-baris tabel Supabase. */
-function backupToRows(data) {
-  if (!data.divisions) throw new Error("Format tidak dikenali");
-  const rows = { divisions: [], entries: [], weekNotes: [], pengasuhNotes: [], accounts: [] };
-
-  if (data.format === "evaluasi-ja-supabase-v1") {
-    return {
-      divisions: data.divisions || [],
-      entries: data.entries || [],
-      weekNotes: data.weekNotes || [],
-      pengasuhNotes: data.pengasuhNotes || [],
-      accounts: data.accounts || [],
-    };
-  }
-
-  // format lama (localStorage): objek bersarang
-  for (const [id, d] of Object.entries(data.divisions)) {
-    rows.divisions.push({ id, coordinator: d.coordinator || "", programs: d.programs || [] });
-  }
-  for (const [wk, byDiv] of Object.entries(data.entries || {})) {
-    for (const [divId, byDay] of Object.entries(byDiv)) {
-      for (const [dayIdx, byProg] of Object.entries(byDay)) {
-        for (const [progId, en] of Object.entries(byProg)) {
-          rows.entries.push({
-            week_key: wk, div_id: divId, day_idx: Number(dayIdx), prog_id: progId,
-            a: en.a ?? "", b: en.b ?? "", ket: en.ket ?? "",
-            kendala: en.kendala ?? "", solusi: en.solusi ?? "", absen: en.absen ?? "",
-          });
-        }
-      }
-    }
-  }
-  for (const [wk, notes] of Object.entries(data.weekNotes || {})) {
-    if (notes) rows.weekNotes.push({ week_key: wk, notes });
-  }
-  for (const [wk, byDiv] of Object.entries(data.pengasuhNotes || {})) {
-    for (const [divId, byProg] of Object.entries(byDiv)) {
-      for (const [progId, note] of Object.entries(byProg)) {
-        if (note) rows.pengasuhNotes.push({ week_key: wk, div_id: divId, prog_id: progId, note });
-      }
-    }
-  }
-  for (const [id, a] of Object.entries(data.accounts || {})) {
-    rows.accounts.push({
-      id, label: a.label, role: a.role, div_id: a.divId ?? null,
-      plain: a.plain ?? null, hash: a.hash ?? null,
-    });
-  }
-  return rows;
 }

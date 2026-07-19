@@ -20,7 +20,6 @@
       <nav class="mainnav">
         <a href="#/" data-nav="dashboard">Dashboard</a>
         <a href="#/evaluasi" data-nav="evaluasi">Evaluasi Mingguan</a>
-        <button id="btn-backup" class="btn btn-ghost" title="Ekspor / impor data" hidden>💾 Data</button>
         <button id="btn-auth" class="btn btn-ghost">🔑 Masuk</button>
       </nav>
     </div>
@@ -81,17 +80,6 @@
       <button class="btn btn-primary" id="btn-change-pass">Simpan Kata Sandi Baru</button>
       <button class="btn btn-danger" id="btn-logout">Keluar (Logout)</button>
       <button class="btn btn-ghost" id="btn-account-close">Tutup</button>
-    </div>
-  </dialog>
-
-  <dialog id="backup-dialog" class="no-print">
-    <h3>Cadangkan / Pulihkan Data</h3>
-    <p>Data aplikasi tersimpan di browser ini. Ekspor secara berkala agar tidak hilang, atau impor untuk memindahkan data antar perangkat.</p>
-    <div class="dialog-actions">
-      <button id="btn-export" class="btn btn-primary">⬇️ Ekspor Data (JSON)</button>
-      <label class="btn btn-outline" for="file-import" id="lbl-import">⬆️ Impor Data (khusus Admin)</label>
-      <input type="file" id="file-import" accept="application/json" hidden>
-      <button id="btn-close-dialog" class="btn btn-ghost">Tutup</button>
     </div>
   </dialog>
 
