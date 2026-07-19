@@ -1,0 +1,33 @@
+{
+  "name": "Evaluasi Mingguan PP Jalaluddin Ar-Rumi",
+  "short_name": "Evaluasi JA",
+  "description": "Laporan program kerja harian & mingguan divisi Pondok Pesantren Jalaluddin Ar-Rumi Jatisari",
+  "id": "/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8faf8",
+  "theme_color": "#14532d",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
