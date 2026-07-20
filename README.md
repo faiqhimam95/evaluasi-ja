@@ -22,6 +22,30 @@ otomatis ter-deploy ulang oleh GitHub Pages (± 1 menit).
 
 Skema database ada di `supabase-setup.sql` (sudah dijalankan di project Supabase).
 
+## Aplikasi Android
+
+Tersedia sebagai **aplikasi Android asli (APK)**, bukan sekadar situs web:
+
+- **Unduh**: tombol **📱 Unduh Aplikasi Android** di navbar, atau langsung
+  https://evaluasi-ja.vercel.app/downloads/evaluasi-ja.apk
+- Setelah diunduh, buka file APK-nya di HP untuk memasang. Karena tidak berasal
+  dari Play Store, Android akan meminta izin **"Instal dari sumber tidak dikenal"**
+  — izinkan khusus untuk file ini saja.
+- Aplikasi berjalan **layar penuh tanpa address bar** (bukan sekadar tab
+  browser) karena sudah diverifikasi kepemilikan domainnya (Digital Asset Links).
+- Karena aplikasi ini merender langsung dari situs live, **setiap pembaruan web
+  app otomatis tampil di aplikasi Android** tanpa perlu memasang APK baru — APK
+  baru hanya dibutuhkan bila ikon/nama aplikasinya sendiri yang berubah.
+- Source project Android ada di folder `android/` (dibuat dengan Bubblewrap/TWA).
+  File kunci penandatanganan (`android/android.keystore`) **sengaja tidak
+  disertakan** di repo karena bersifat rahasia — simpan cadangannya di tempat
+  aman; kalau hilang, pembaruan APK berikutnya tidak bisa memakai identitas yang
+  sama dan pengguna harus copot-pasang ulang aplikasinya.
+
+Alternatif tanpa mengunduh APK: buka situs di Chrome Android → menu (⋮) →
+**"Tambahkan ke layar Utama" / "Instal aplikasi"** — hasilnya serupa (ikon di
+layar utama, tanpa address bar) dan otomatis selalu versi terbaru.
+
 ## Akun & Hak Akses
 
 - **Publik (tanpa login)**: hanya dapat *melihat* Laporan Harian dan Rekap Mingguan
@@ -73,11 +97,10 @@ Akun bawaan (kata sandi awal = nama akun + 2026, **segera ganti** lewat menu aku
   rapat evaluasi.
 - **Cetak**: form harian, form mingguan, dan rekap evaluasi bisa dicetak (atau "Save as
   PDF") dengan tata letak menyerupai form kertas, termasuk kolom tanda tangan.
-- **💾 Data**: ekspor/impor JSON untuk cadangan atau pindah perangkat.
+- **Aplikasi Android**: bisa dipasang sebagai APK asli — lihat bagian di atas.
 
 ## Penyimpanan Data
 
 Seluruh data (laporan, program, akun, catatan) tersimpan terpusat di **Supabase**,
-sehingga otomatis tergabung dari semua perangkat. Fitur **Ekspor Data** (menu
-💾 Data, setelah login) mengunduh cadangan lengkap dari server — lakukan rutin
-sebagai jaga-jaga. Impor cadangan hanya bisa dilakukan Admin.
+sehingga otomatis tergabung dari semua perangkat — baik yang mengakses lewat
+browser maupun lewat aplikasi Android.
