@@ -20,7 +20,12 @@ Untuk pengembangan lokal: `npx http-server "E:\Evaluasi JA" -p 8347` lalu buka
 `http://localhost:8347`. Setiap perubahan kode di-push ke branch `main` akan
 otomatis ter-deploy ulang oleh GitHub Pages (± 1 menit).
 
-Skema database ada di `supabase-setup.sql` (sudah dijalankan di project Supabase).
+Skema database ada di `supabase-setup.sql`. **Penting:** file ini baru saja bertambah
+4 tabel untuk fitur Kewaliasuhan (bagian "Tambahan: Kewaliasuhan" di akhir file) —
+**jalankan ulang seluruh isi file ini** di Supabase Dashboard → SQL Editor → Run
+(aman, seluruh perintah bersifat idempotent) agar fitur tersebut aktif. Sebelum
+langkah ini dijalankan, tab Kewaliasuhan akan menampilkan pesan "tabel belum
+dibuat" — 8 divisi lain tidak terpengaruh.
 
 ## Aplikasi Android
 
@@ -50,15 +55,19 @@ layar utama, tanpa address bar) dan otomatis selalu versi terbaru.
 
 - **Publik (tanpa login)**: hanya dapat *melihat* Laporan Harian dan Rekap Mingguan
   sebagai data statis. Tidak bisa mengisi atau mengubah apa pun.
-- **Koordinator divisi**: setelah masuk lewat tombol **🔑 Masuk**, hanya dapat mengisi
-  laporan dan mengelola program **divisinya sendiri**.
+- **Koordinator divisi** (8 divisi selain Kewaliasuhan): setelah masuk lewat tombol
+  **🔑 Masuk**, hanya dapat mengisi laporan dan mengelola program **divisinya sendiri**.
+- **Wali Asuh** (khusus Kewaliasuhan, 11 akun): hanya dapat mengisi nilai & catatan
+  santri **kelompok asuhannya sendiri**. Tidak bisa menambah/menghapus santri atau
+  aspek penilaian — itu wewenang Admin.
 - **Sekretaris Pesantren**: mengisi Catatan Rapat Evaluasi mingguan (halaman
   Evaluasi Mingguan). Tidak dapat mengubah laporan divisi.
 - **Pengasuh**: memberikan catatan/arahan langsung pada tiap program per divisi
   (kartu "🖋️ Catatan Pengasuh" di tab Rekap Mingguan setiap divisi; ikut tercetak
   pada form mingguan). Tidak dapat mengubah laporan divisi.
 - **Admin / Pengurus Harian**: dapat mengisi semua divisi, menulis Catatan Rapat
-  Evaluasi dan Catatan Pengasuh, mengimpor data, dan mereset kata sandi akun.
+  Evaluasi dan Catatan Pengasuh, mereset kata sandi akun, serta mengelola daftar
+  santri, aspek penilaian, dan nama tiap Wali Asuh di Kewaliasuhan.
 
 Akun bawaan (kata sandi awal = nama akun + 2026, **segera ganti** lewat menu akun 👤):
 
@@ -72,7 +81,7 @@ Akun bawaan (kata sandi awal = nama akun + 2026, **segera ganti** lewat menu aku
 | Koordinator Kebersihan (`kebersihan`) | `kebersihan2026` |
 | Koordinator Kesehatan (`kesehatan`) | `kesehatan2026` |
 | Koordinator Sarana dan Prasarana (`sarpras`) | `sarpras2026` |
-| Koordinator Kewaliasuhan (`kewaliasuhan`) | `kewaliasuhan2026` |
+| Wali Asuh 1–11 (`wali1` s.d. `wali11`) | `wali12026` s.d. `wali112026` |
 | Sekretaris Pesantren (`sekretaris`) | `sekretaris2026` |
 | Pengasuh (`pengasuh`) | `pengasuh2026` |
 | Admin / Pengurus Harian (`admin`) | `admin2026` |
@@ -88,8 +97,12 @@ Akun bawaan (kata sandi awal = nama akun + 2026, **segera ganti** lewat menu aku
   Kesehatan, Sarana dan Prasarana, Kewaliasuhan.
 - **Pendidikan & Ubudiyah** sudah terisi program sesuai form contoh (termasuk jadwal
   per hari, mis. Pembacaan Tahlil hanya Kamis, Muhadoroh hanya Sabtu).
-- Divisi lain: koordinator mengisi sendiri daftar program + hari pelaksanaannya di tab
-  **Kelola Program**.
+- Divisi lain (kecuali Kewaliasuhan): koordinator mengisi sendiri daftar program +
+  hari pelaksanaannya di tab **Kelola Program**.
+- **Kewaliasuhan** memakai format berbeda: **daftar nama santri × aspek penilaian**
+  (skala 0–100 per aspek + catatan), bukan program kerja harian. Admin mengelola
+  daftar aspek dan santri tiap kelompok di tab **⚙️ Kelola Santri & Aspek**; 11 akun
+  Wali Asuh masing-masing hanya mengisi nilai kelompok asuhannya sendiri.
 - **Laporan Harian**: pekan dimulai **Sabtu** s.d. Jum'at; isian tersimpan otomatis.
 - **Rekap Mingguan**: terisi otomatis dari laporan harian, lengkap dengan rata-rata dan
   rangkuman kendala.
