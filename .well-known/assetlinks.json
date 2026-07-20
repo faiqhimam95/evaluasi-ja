@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "id.ponpes.jarumi.evaluasi",
+      "sha256_cert_fingerprints": [
+        "82:64:C2:15:21:07:EF:16:16:EB:7E:2C:5A:51:8B:A8:A9:45:EC:3C:3A:2D:50:0F:DF:71:88:97:19:85:57:20"
+      ]
+    }
+  }
+]

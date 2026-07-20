@@ -1,0 +1,42 @@
+{
+  "packageId": "id.ponpes.jarumi.evaluasi",
+  "host": "evaluasi-ja.vercel.app",
+  "name": "Evaluasi Mingguan PP Jalaluddin Ar-Rumi",
+  "launcherName": "Evaluasi JA",
+  "display": "standalone",
+  "themeColor": "#14532D",
+  "themeColorDark": "#14532D",
+  "navigationColor": "#14532D",
+  "navigationColorDark": "#14532D",
+  "navigationDividerColor": "#14532D",
+  "navigationDividerColorDark": "#14532D",
+  "backgroundColor": "#F8FAF8",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://evaluasi-ja.vercel.app/icons/icon-512.png",
+  "maskableIconUrl": "https://evaluasi-ja.vercel.app/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://evaluasi-ja.vercel.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://evaluasi-ja.vercel.app/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}
