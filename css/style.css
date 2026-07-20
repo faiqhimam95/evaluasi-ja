@@ -162,6 +162,14 @@ table.recap td.prog-name { text-align: left; font-weight: 600; min-width: 150px;
 table.recap td.na { background: #f3f4f6; color: #c2c8c2; }
 table.recap td.avg { background: var(--green-50); font-weight: 700; }
 table.recap tfoot td { background: var(--green-50); font-weight: 700; }
+table.recap input[type="number"] {
+  width: 56px; border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 5px; text-align: center; font: inherit;
+}
+table.recap textarea {
+  width: 150px; min-height: 32px; border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 6px; font: inherit; resize: vertical;
+}
 
 .kendala-list { margin: 0; padding: 0; list-style: none; }
 .kendala-list li { border-left: 3px solid var(--gold); background: #fffbeb; padding: 8px 12px; border-radius: 0 8px 8px 0; margin-bottom: 8px; font-size: .87rem; }

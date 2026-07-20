@@ -85,6 +85,7 @@ function defaultAccounts() {
     },
   };
   for (const d of DIVISIONS) {
+    if (d.id === "kewaliasuhan") continue; // digantikan 11 akun wali asuh di bawah
     acc[d.id] = {
       user: d.id,
       label: "Koordinator " + d.name,
@@ -93,7 +94,22 @@ function defaultAccounts() {
       plain: d.id + "2026", // kata sandi awal, mis. "pendidikan2026"
     };
   }
+  for (let i = 1; i <= 11; i++) {
+    const id = "wali" + i;
+    acc[id] = {
+      user: id,
+      label: "Wali Asuh " + i,
+      role: "wali",
+      divId: "kewaliasuhan",
+      plain: id + "2026", // kata sandi awal, mis. "wali12026"
+    };
+  }
   return acc;
+}
+
+/* 11 id akun wali asuh: wali1..wali11 */
+function waliIds() {
+  return Array.from({ length: 11 }, (_, i) => "wali" + (i + 1));
 }
 
 /* ---------------- Autentikasi ---------------- */
@@ -143,6 +159,15 @@ function canEditWeekNotes() {
 function canEditPengasuhNotes() {
   const r = session()?.role;
   return r === "admin" || r === "pengasuh";
+}
+/* Kelola aspek penilaian & daftar santri Kewaliasuhan: khusus admin */
+function canManageKewaliasuhan() {
+  return isAdmin();
+}
+/* Mengisi nilai/catatan seorang santri: admin, atau wali asuh yang bersangkutan */
+function canEditWaliStudent(waliId) {
+  const s = session();
+  return !!s && (s.role === "admin" || (s.role === "wali" && s.id === waliId));
 }
 
 /* ---------------- State (tersimpan di Supabase) ---------------- */
@@ -205,12 +230,28 @@ async function initData() {
     sb("/divisions?select=*"),
     sb("/accounts?select=*"),
   ]);
+  // Tabel Kewaliasuhan bersifat tambahan (mungkin belum dibuat via supabase-setup.sql
+  // di project lama) — jangan sampai kegagalannya menjatuhkan seluruh aplikasi.
+  let aspectRows = [],
+    studentRows = [],
+    kewaliasuhanTablesReady = true;
+  try {
+    [aspectRows, studentRows] = await Promise.all([
+      sb("/kewaliasuhan_aspects?select=*&order=order_no.asc"),
+      sb("/kewaliasuhan_students?select=*&order=order_no.asc"),
+    ]);
+  } catch (e) {
+    console.warn("Tabel Kewaliasuhan belum tersedia:", e.message);
+    kewaliasuhanTablesReady = false;
+  }
 
   state = {
     divisions: {},
     entries: {},
     weekNotes: {},
     pengasuhNotes: {},
+    kewaliasuhanScores: {},
+    kewaliasuhanNotes: {},
     selectedDate: loadSelectedDate(),
   };
 
@@ -255,9 +296,45 @@ async function initData() {
     await sbUpsert("accounts", rows, "id");
     for (const id of missingAcc) state.accounts[id] = defAcc[id];
   }
+
+  state.kewaliasuhanTablesReady = kewaliasuhanTablesReady;
+  state.kewaliasuhan = {
+    aspects: aspectRows.map((r) => ({ id: r.id, name: r.name, order: r.order_no })),
+    students: studentRows.map((r) => ({
+      id: r.id,
+      waliId: r.wali_id,
+      name: r.name,
+      order: r.order_no,
+    })),
+  };
+  if (kewaliasuhanTablesReady && !state.kewaliasuhan.aspects.length) {
+    const seedNames = [
+      "Akhlak",
+      "Kedisiplinan",
+      "Ibadah",
+      "Kebersihan Diri",
+      "Kerjasama",
+      "Tanggung Jawab",
+    ];
+    const seedAspects = seedNames.map((name, i) => ({
+      id: "aspek-seed-" + (i + 1),
+      name,
+      order: i,
+    }));
+    try {
+      await sbUpsert(
+        "kewaliasuhan_aspects",
+        seedAspects.map((a) => ({ id: a.id, name: a.name, order_no: a.order })),
+        "id",
+      );
+      state.kewaliasuhan.aspects = seedAspects;
+    } catch (e) {
+      console.warn("Gagal menyemai aspek Kewaliasuhan:", e.message);
+    }
+  }
 }
 
-/* Muat data satu minggu (entri, catatan rapat, catatan pengasuh). */
+/* Muat data satu minggu (entri, catatan rapat, catatan pengasuh, penilaian kewaliasuhan). */
 async function loadWeek(weekKey) {
   if (loadedWeeks.has(weekKey)) return;
   const q = "week_key=eq." + weekKey;
@@ -266,6 +343,18 @@ async function loadWeek(weekKey) {
     sb("/week_notes?select=*&" + q),
     sb("/pengasuh_notes?select=*&" + q),
   ]);
+  let kwScoreRows = [],
+    kwNoteRows = [];
+  if (state.kewaliasuhanTablesReady) {
+    try {
+      [kwScoreRows, kwNoteRows] = await Promise.all([
+        sb("/kewaliasuhan_scores?select=*&" + q),
+        sb("/kewaliasuhan_notes?select=*&" + q),
+      ]);
+    } catch (e) {
+      console.warn("Gagal memuat data Kewaliasuhan minggu ini:", e.message);
+    }
+  }
   const ew = {};
   for (const r of entryRows) {
     if (!ew[r.div_id]) ew[r.div_id] = {};
@@ -287,6 +376,17 @@ async function loadWeek(weekKey) {
     pw[r.div_id][r.prog_id] = r.note;
   }
   state.pengasuhNotes[weekKey] = pw;
+
+  const ks = {};
+  for (const r of kwScoreRows) {
+    if (!ks[r.student_id]) ks[r.student_id] = {};
+    ks[r.student_id][r.aspect_id] = r.score;
+  }
+  state.kewaliasuhanScores[weekKey] = ks;
+  const kn = {};
+  for (const r of kwNoteRows) kn[r.student_id] = r.note;
+  state.kewaliasuhanNotes[weekKey] = kn;
+
   loadedWeeks.add(weekKey);
 }
 
@@ -498,6 +598,103 @@ function setPengasuhNote(weekKey, divId, progId, value) {
   syncPengasuhNote(weekKey, divId, progId);
 }
 
+/* ---------------- Kewaliasuhan: nilai & catatan santri ---------------- */
+
+function getKwScore(weekKey, studentId, aspectId) {
+  return state.kewaliasuhanScores?.[weekKey]?.[studentId]?.[aspectId] ?? "";
+}
+function setKwScore(weekKey, studentId, aspectId, value) {
+  const student = state.kewaliasuhan.students.find((s) => s.id === studentId);
+  if (!student || !canEditWaliStudent(student.waliId)) return;
+  if (!state.kewaliasuhanScores[weekKey]) state.kewaliasuhanScores[weekKey] = {};
+  if (!state.kewaliasuhanScores[weekKey][studentId])
+    state.kewaliasuhanScores[weekKey][studentId] = {};
+  state.kewaliasuhanScores[weekKey][studentId][aspectId] = value;
+  queueSync(`kw-score:${weekKey}:${studentId}:${aspectId}`, () =>
+    sbUpsert(
+      "kewaliasuhan_scores",
+      { week_key: weekKey, student_id: studentId, aspect_id: aspectId, score: value },
+      "week_key,student_id,aspect_id",
+    ),
+  );
+}
+function getKwNote(weekKey, studentId) {
+  return state.kewaliasuhanNotes?.[weekKey]?.[studentId] ?? "";
+}
+function setKwNote(weekKey, studentId, value) {
+  const student = state.kewaliasuhan.students.find((s) => s.id === studentId);
+  if (!student || !canEditWaliStudent(student.waliId)) return;
+  if (!state.kewaliasuhanNotes[weekKey]) state.kewaliasuhanNotes[weekKey] = {};
+  state.kewaliasuhanNotes[weekKey][studentId] = value;
+  queueSync(`kw-note:${weekKey}:${studentId}`, () =>
+    sbUpsert(
+      "kewaliasuhan_notes",
+      { week_key: weekKey, student_id: studentId, note: value },
+      "week_key,student_id",
+    ),
+  );
+}
+
+/* Statistik Kewaliasuhan untuk satu minggu (semua kelompok wali digabung) */
+function kewaliasuhanStats(weekKey) {
+  const aspects = state.kewaliasuhan.aspects;
+  const students = state.kewaliasuhan.students;
+  const total = students.length * aspects.length;
+  let filled = 0,
+    sum = 0,
+    n = 0;
+  for (const st of students) {
+    for (const a of aspects) {
+      const v = getKwScore(weekKey, st.id, a.id);
+      if (v !== "") {
+        filled++;
+        sum += Number(v);
+        n++;
+      }
+    }
+  }
+  return {
+    total,
+    filled,
+    pct: total ? Math.round((filled / total) * 100) : 0,
+    avg: n ? sum / n : null,
+  };
+}
+
+function syncKwAspect(aspect) {
+  queueSync("kw-aspect:" + aspect.id, () =>
+    sbUpsert(
+      "kewaliasuhan_aspects",
+      { id: aspect.id, name: aspect.name, order_no: aspect.order },
+      "id",
+    ),
+  );
+}
+function deleteKwAspect(aspectId) {
+  queueSync("kw-del-aspect:" + aspectId, () =>
+    sb(`/kewaliasuhan_aspects?id=eq.${aspectId}`, { method: "DELETE" }),
+  );
+}
+function syncKwStudent(student) {
+  queueSync("kw-student:" + student.id, () =>
+    sbUpsert(
+      "kewaliasuhan_students",
+      {
+        id: student.id,
+        wali_id: student.waliId,
+        name: student.name,
+        order_no: student.order,
+      },
+      "id",
+    ),
+  );
+}
+function deleteKwStudent(studentId) {
+  queueSync("kw-del-student:" + studentId, () =>
+    sb(`/kewaliasuhan_students?id=eq.${studentId}`, { method: "DELETE" }),
+  );
+}
+
 function entryFilled(en) {
   return (
     en &&
@@ -652,6 +849,10 @@ async function render() {
       location.hash = `#/divisi/${div.id}/harian`;
       return;
     }
+    if (div.id === "kewaliasuhan" && route.tab === "kelola" && !canManageKewaliasuhan()) {
+      location.hash = "#/divisi/kewaliasuhan/penilaian";
+      return;
+    }
     app.innerHTML = viewDivision(div, route);
     bindDivision(div, route);
   } else if (route.page === "evaluasi") {
@@ -689,9 +890,32 @@ function bindWeekPicker() {
 
 /* ---------------- Dashboard ---------------- */
 
+function kewaliasuhanDashboardCardHTML(wk, d) {
+  const st = kewaliasuhanStats(wk);
+  const nStudents = state.kewaliasuhan.students.length;
+  return `
+    <a class="division-card" href="#/divisi/${d.id}">
+      <span class="icon">${d.icon}</span>
+      <h3>Divisi ${esc(d.name)}</h3>
+      <div class="meta">${state.kewaliasuhan.aspects.length} aspek · ${nStudents} santri · 11 wali asuh</div>
+      ${
+        nStudents
+          ? `
+      <div class="progressbar"><i style="width:${st.pct}%"></i></div>
+      <div class="progress-row">
+        <span>Terisi ${st.filled}/${st.total}</span>
+        <span>${st.avg !== null ? "Rata-rata: " + fmtNum(st.avg) : ""}</span>
+      </div>`
+          : `
+      <div class="progress-row"><span>Admin dapat menambahkan santri asuhan</span></div>`
+      }
+    </a>`;
+}
+
 function viewDashboard() {
   const wk = currentWeekKey();
   const cards = DIVISIONS.map((d) => {
+    if (d.id === "kewaliasuhan") return kewaliasuhanDashboardCardHTML(wk, d);
     const st = divisionStats(wk, d.id);
     const nProg = state.divisions[d.id].programs.length;
     const coord = state.divisions[d.id].coordinator;
@@ -735,6 +959,7 @@ function bindDashboard() {
 /* ---------------- Halaman divisi ---------------- */
 
 function viewDivision(div, route) {
+  if (div.id === "kewaliasuhan") return viewKewaliasuhan(div, route);
   const tab = route.tab;
   const tabDefs = [
     ["harian", "📝 Laporan Harian"],
@@ -767,6 +992,7 @@ function viewDivision(div, route) {
 
 function bindDivision(div, route) {
   bindWeekPicker();
+  if (div.id === "kewaliasuhan") return bindKewaliasuhan(div, route);
   $$(".tab").forEach((b) =>
     b.addEventListener("click", () => {
       location.hash = `#/divisi/${div.id}/${b.dataset.tab}`;
@@ -1311,6 +1537,376 @@ function bindProgram(div) {
   });
 }
 
+/* ---------------- Divisi Kewaliasuhan (khusus) ---------------- */
+/* Form berbentuk daftar nama santri × aspek penilaian, bukan program kerja
+   biasa. Aspek & daftar santri dikelola admin; 11 akun wali asuh (wali1..11)
+   masing-masing hanya mengisi nilai kelompok asuhannya sendiri. */
+
+function viewKewaliasuhan(div, route) {
+  if (!state.kewaliasuhanTablesReady) {
+    return `
+      <div class="page-head">
+        <div>
+          <a href="#/" class="back-link">← Kembali ke Dashboard</a>
+          <h1>${div.icon} Divisi ${esc(div.name)}</h1>
+        </div>
+      </div>
+      <div class="card"><div class="empty-state">
+        <div class="big">⚠️</div>
+        <p><b>Tabel data Kewaliasuhan belum dibuat di database.</b><br>
+        Admin perlu menjalankan isi terbaru file <code>supabase-setup.sql</code> di
+        Supabase Dashboard → SQL Editor (bagian "Tambahan: Kewaliasuhan"), lalu muat ulang halaman ini.</p>
+        <button class="btn btn-primary" onclick="location.reload()">🔄 Muat Ulang</button>
+      </div></div>`;
+  }
+  const tab = route.tab === "harian" || !route.tab ? "penilaian" : route.tab;
+  const tabDefs = [["penilaian", "📋 Penilaian Santri"]];
+  if (canManageKewaliasuhan()) tabDefs.push(["kelola", "⚙️ Kelola Santri & Aspek"]);
+  const tabs = tabDefs
+    .map(
+      ([id, label]) =>
+        `<button class="tab ${tab === id ? "active" : ""}" data-tab="${id}">${label}</button>`,
+    )
+    .join("");
+
+  const body =
+    tab === "kelola" ? viewKewaliasuhanKelola(route) : viewKewaliasuhanPenilaian(route);
+
+  return `
+    <div class="page-head">
+      <div>
+        <a href="#/" class="back-link">← Kembali ke Dashboard</a>
+        <h1>${div.icon} Divisi ${esc(div.name)}</h1>
+      </div>
+      ${weekPickerHTML()}
+    </div>
+    <div class="tabs">${tabs}</div>
+    ${body}`;
+}
+
+function bindKewaliasuhan(div, route) {
+  const tab = route.tab === "harian" || !route.tab ? "penilaian" : route.tab;
+  $$(".tab").forEach((b) =>
+    b.addEventListener("click", () => {
+      location.hash = `#/divisi/${div.id}/${b.dataset.tab}`;
+    }),
+  );
+  if (tab === "kelola") bindKewaliasuhanKelola(route);
+  else bindKewaliasuhanPenilaian(route);
+}
+
+/* ----- Tab: Penilaian Santri ----- */
+
+function viewKewaliasuhanPenilaian(route) {
+  const wk = currentWeekKey();
+  const s = session();
+  if (s && s.role === "wali") {
+    return kwGroupCardHTML(s.id, wk, true);
+  }
+  if (canManageKewaliasuhan()) {
+    const ids = waliIds();
+    const selected = ids.includes(route.day) ? route.day : "wali1";
+    const options = ids
+      .map(
+        (id) =>
+          `<option value="${id}" ${id === selected ? "selected" : ""}>${esc(state.accounts[id]?.label || id)}</option>`,
+      )
+      .join("");
+    return `
+      <div class="card">
+        <label for="kw-wali-view" style="font-weight:700;font-size:.85rem;color:var(--muted)">Pilih Wali Asuh:</label>
+        <select id="kw-wali-view" style="margin-left:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit">${options}</select>
+      </div>
+      ${kwGroupCardHTML(selected, wk, true)}`;
+  }
+  // publik / peran lain: baca-saja, tampilkan semua kelompok
+  return waliIds()
+    .map((id) => kwGroupCardHTML(id, wk, false))
+    .join("");
+}
+
+function kwGroupCardHTML(waliId, weekKey, allowEdit) {
+  const acc = state.accounts[waliId];
+  const label = acc ? acc.label : waliId;
+  const students = state.kewaliasuhan.students
+    .filter((s) => s.waliId === waliId)
+    .sort((a, b) => a.order - b.order);
+  const aspects = state.kewaliasuhan.aspects;
+  const editable = allowEdit && canEditWaliStudent(waliId);
+
+  if (!students.length || !aspects.length) {
+    const msg = !aspects.length
+      ? "Belum ada aspek penilaian ditentukan."
+      : "Belum ada santri pada kelompok ini.";
+    return `<div class="card"><h2>${esc(label)}</h2><p class="sub" style="margin:0">${msg}${canManageKewaliasuhan() ? " Atur di tab Kelola Santri & Aspek." : ""}</p></div>`;
+  }
+
+  const head = aspects.map((a) => `<th>${esc(a.name)}</th>`).join("") + "<th>Catatan</th>";
+  const rows = students
+    .map((st, i) => {
+      const cells = aspects
+        .map((a) => {
+          const val = getKwScore(weekKey, st.id, a.id);
+          return editable
+            ? `<td><input type="number" min="0" max="100" inputmode="numeric" class="kw-score" data-student="${st.id}" data-aspect="${a.id}" value="${val}"></td>`
+            : `<td>${val !== "" ? fmtNum(val) : ""}</td>`;
+        })
+        .join("");
+      const note = getKwNote(weekKey, st.id);
+      const noteCell = editable
+        ? `<td><textarea class="kw-note" data-student="${st.id}">${esc(note)}</textarea></td>`
+        : `<td style="text-align:left">${esc(note)}</td>`;
+      return `<tr><td>${i + 1}</td><td class="prog-name">${esc(st.name)}</td>${cells}${noteCell}</tr>`;
+    })
+    .join("");
+
+  return `
+    <div class="card">
+      <div class="page-head" style="margin-bottom:10px">
+        <h2>${esc(label)}</h2>
+        <div class="toolbar">
+          ${editable ? '<span class="save-hint" id="save-hint"></span>' : ""}
+          <button class="btn btn-outline btn-print-kw" data-wali="${waliId}">🖨️ Cetak</button>
+        </div>
+      </div>
+      <div class="sub">Penilaian mingguan santri asuhan — skala 0–100 per aspek.</div>
+      <div class="table-wrap">
+        <table class="recap">
+          <thead><tr><th>No</th><th>Nama Santri</th>${head}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function bindKewaliasuhanPenilaian(route) {
+  const wk = currentWeekKey();
+  const sel = $("#kw-wali-view");
+  if (sel)
+    sel.addEventListener("change", () => {
+      location.hash = `#/divisi/kewaliasuhan/penilaian/${sel.value}`;
+    });
+  $$(".kw-score").forEach((inp) =>
+    inp.addEventListener("input", () => {
+      let v = inp.value;
+      if (v !== "") {
+        const n = Math.max(0, Math.min(100, Number(v)));
+        if (String(n) !== v) inp.value = n;
+        v = String(n);
+      }
+      setKwScore(wk, inp.dataset.student, inp.dataset.aspect, v);
+    }),
+  );
+  $$(".kw-note").forEach((ta) =>
+    ta.addEventListener("input", () => {
+      setKwNote(wk, ta.dataset.student, ta.value);
+    }),
+  );
+  $$(".btn-print-kw").forEach((b) =>
+    b.addEventListener("click", () => printKewaliasuhan(b.dataset.wali, wk)),
+  );
+}
+
+/* ----- Tab: Kelola Santri & Aspek (admin) ----- */
+
+function viewKewaliasuhanKelola(route) {
+  const aspects = state.kewaliasuhan.aspects;
+  const aspectRows = aspects
+    .map(
+      (a, i) => `
+    <tr data-aspect="${a.id}">
+      <td>${i + 1}</td>
+      <td><input type="text" class="kw-aspect-name" value="${esc(a.name)}" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit"></td>
+      <td><button class="btn btn-danger btn-sm btn-del-aspect">Hapus</button></td>
+    </tr>`,
+    )
+    .join("");
+
+  const ids = waliIds();
+  const selected = ids.includes(route.day) ? route.day : "wali1";
+  const students = state.kewaliasuhan.students
+    .filter((s) => s.waliId === selected)
+    .sort((a, b) => a.order - b.order);
+  const studentRows = students
+    .map(
+      (s, i) => `
+    <tr data-student="${s.id}">
+      <td>${i + 1}</td>
+      <td><input type="text" class="kw-student-name" value="${esc(s.name)}" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit"></td>
+      <td><button class="btn btn-danger btn-sm btn-del-student">Hapus</button></td>
+    </tr>`,
+    )
+    .join("");
+  const waliAcc = state.accounts[selected];
+  const waliOptions = ids
+    .map(
+      (id) =>
+        `<option value="${id}" ${id === selected ? "selected" : ""}>${esc(state.accounts[id]?.label || id)}</option>`,
+    )
+    .join("");
+
+  return `
+    <div class="card">
+      <h2>Aspek Penilaian</h2>
+      <div class="sub">Aspek ini berlaku untuk seluruh kelompok wali asuh.</div>
+      <div class="table-wrap">
+        <table class="prog-table">
+          <thead><tr><th style="width:36px">No</th><th>Nama Aspek</th><th style="width:80px"></th></tr></thead>
+          <tbody>${aspectRows || '<tr><td colspan="3" class="sub">Belum ada aspek.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <input type="text" id="new-aspect-name" placeholder="Nama aspek baru…" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
+        <button class="btn btn-primary" id="btn-add-aspect">Tambah</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Wali Asuh &amp; Santri Asuhan</h2>
+      <div class="coordinator-inline" style="margin-bottom:12px">
+        <label for="kw-wali-select"><b>Kelompok:</b></label>
+        <select id="kw-wali-select">${waliOptions}</select>
+      </div>
+      <div class="coordinator-inline" style="margin-bottom:12px">
+        <label for="kw-wali-label"><b>Nama Wali:</b></label>
+        <input type="text" id="kw-wali-label" value="${esc(waliAcc?.label || "")}">
+      </div>
+      <div class="table-wrap">
+        <table class="prog-table">
+          <thead><tr><th style="width:36px">No</th><th>Nama Santri</th><th style="width:80px"></th></tr></thead>
+          <tbody>${studentRows || '<tr><td colspan="3" class="sub">Belum ada santri pada kelompok ini.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <input type="text" id="new-student-name" placeholder="Nama santri baru…" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
+        <button class="btn btn-primary" id="btn-add-student">Tambah</button>
+      </div>
+      <p class="sub" style="margin-top:10px">Kata sandi awal akun wali: <code>${selected}2026</code> — segera minta wali menggantinya lewat menu akun 👤. Admin dapat mereset lewat menu 👤 → Reset Kata Sandi Akun.</p>
+    </div>`;
+}
+
+function bindKewaliasuhanKelola(route) {
+  const ids = waliIds();
+  const selected = ids.includes(route.day) ? route.day : "wali1";
+
+  $("#btn-add-aspect").addEventListener("click", () => {
+    const inp = $("#new-aspect-name");
+    const name = inp.value.trim();
+    if (!name) {
+      toast("Isi nama aspek terlebih dahulu");
+      inp.focus();
+      return;
+    }
+    const order = state.kewaliasuhan.aspects.length;
+    const aspect = { id: "aspek-" + Date.now(), name, order };
+    state.kewaliasuhan.aspects.push(aspect);
+    syncKwAspect(aspect);
+    render();
+    toast('Aspek "' + name + '" ditambahkan');
+  });
+
+  $$("tr[data-aspect]").forEach((tr) => {
+    const aspect = state.kewaliasuhan.aspects.find((a) => a.id === tr.dataset.aspect);
+    if (!aspect) return;
+    $(".kw-aspect-name", tr).addEventListener("input", (e) => {
+      aspect.name = e.target.value;
+      syncKwAspect(aspect);
+    });
+    $(".btn-del-aspect", tr).addEventListener("click", () => {
+      if (
+        !confirm(
+          `Hapus aspek "${aspect.name}"?\nNilai yang sudah diisi pada aspek ini tidak akan tampil lagi.`,
+        )
+      )
+        return;
+      state.kewaliasuhan.aspects = state.kewaliasuhan.aspects.filter((a) => a.id !== aspect.id);
+      deleteKwAspect(aspect.id);
+      render();
+      toast("Aspek dihapus");
+    });
+  });
+
+  $("#kw-wali-select").addEventListener("change", (e) => {
+    location.hash = `#/divisi/kewaliasuhan/kelola/${e.target.value}`;
+  });
+
+  $("#kw-wali-label").addEventListener("input", (e) => {
+    const acc = state.accounts[selected];
+    if (!acc) return;
+    acc.label = e.target.value;
+    queueSync("kw-wali-label:" + selected, () => syncAccount(selected));
+  });
+
+  $$("tr[data-student]").forEach((tr) => {
+    const student = state.kewaliasuhan.students.find((s) => s.id === tr.dataset.student);
+    if (!student) return;
+    $(".kw-student-name", tr).addEventListener("input", (e) => {
+      student.name = e.target.value;
+      syncKwStudent(student);
+    });
+    $(".btn-del-student", tr).addEventListener("click", () => {
+      if (!confirm(`Hapus santri "${student.name}" dari daftar asuhan?`)) return;
+      state.kewaliasuhan.students = state.kewaliasuhan.students.filter(
+        (s) => s.id !== student.id,
+      );
+      deleteKwStudent(student.id);
+      render();
+      toast("Santri dihapus dari daftar");
+    });
+  });
+
+  $("#btn-add-student").addEventListener("click", () => {
+    const inp = $("#new-student-name");
+    const name = inp.value.trim();
+    if (!name) {
+      toast("Isi nama santri terlebih dahulu");
+      inp.focus();
+      return;
+    }
+    const order = state.kewaliasuhan.students.filter((s) => s.waliId === selected).length;
+    const student = { id: "santri-" + Date.now(), waliId: selected, name, order };
+    state.kewaliasuhan.students.push(student);
+    syncKwStudent(student);
+    render();
+    toast('Santri "' + name + '" ditambahkan');
+  });
+}
+
+function printKewaliasuhan(waliId, weekKey) {
+  const label = state.accounts[waliId]?.label || waliId;
+  const students = state.kewaliasuhan.students
+    .filter((s) => s.waliId === waliId)
+    .sort((a, b) => a.order - b.order);
+  const aspects = state.kewaliasuhan.aspects;
+  const { title } = weekLabel(weekKey);
+  const headAspects = aspects.map((a) => `<th>${esc(a.name)}</th>`).join("");
+  const rows = students
+    .map((s, i) => {
+      const cells = aspects
+        .map((a) => {
+          const v = getKwScore(weekKey, s.id, a.id);
+          return `<td>${v !== "" ? fmtNum(v) : ""}</td>`;
+        })
+        .join("");
+      const note = getKwNote(weekKey, s.id);
+      return `<tr><td>${i + 1}</td><td class="left">${esc(s.name)}</td>${cells}<td class="left">${esc(note)}</td></tr>`;
+    })
+    .join("");
+  doPrint(`
+    ${printHeaderHTML("Kewaliasuhan")}
+    <div class="meta-line"><b>Bulan/Minggu :</b> ${title}</div>
+    <div class="meta-line"><b>Wali Asuh :</b> ${esc(label)}</div>
+    <table>
+      <thead><tr><th style="width:24px">No</th><th>Nama Santri</th>${headAspects}<th>Catatan</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="sign-row">
+      <div class="sign">Mengetahui,<br>Pengasuh<div class="space"></div>( ............................ )</div>
+      <div class="sign">Wali Asuh<div class="space"></div>( ${esc(label)} )</div>
+    </div>
+  `);
+}
+
 /* ---------------- Evaluasi Mingguan (semua divisi) ---------------- */
 
 function viewEvaluasi() {
@@ -1324,6 +1920,20 @@ function viewEvaluasi() {
     totKendala = 0,
     aktif = 0;
   const rows = DIVISIONS.map((d) => {
+    if (d.id === "kewaliasuhan") {
+      const kst = kewaliasuhanStats(wk);
+      const nStudents = state.kewaliasuhan.students.length;
+      if (nStudents) aktif++;
+      return `<tr>
+        <td class="prog-name">${d.icon} ${esc(d.name)}</td>
+        <td>${nStudents || "—"}</td>
+        <td>${nStudents ? kst.pct + "%" : "—"}</td>
+        <td>${fmtNum(kst.avg)}</td>
+        <td>—</td>
+        <td>—</td>
+        <td><a class="back-link" href="#/divisi/${d.id}">Lihat penilaian →</a></td>
+      </tr>`;
+    }
     const st = divisionStats(wk, d.id);
     const nProg = state.divisions[d.id].programs.length;
     if (nProg) aktif++;
@@ -1587,6 +2197,10 @@ function accountOptionsHTML(selectEl, includeAdmin) {
     const acc = state.accounts[d.id];
     if (acc) opts.push(`<option value="${d.id}">${esc(acc.label)}</option>`);
   }
+  for (const id of waliIds()) {
+    const acc = state.accounts[id];
+    if (acc) opts.push(`<option value="${id}">${esc(acc.label)}</option>`);
+  }
   for (const id of ["sekretaris", "pengasuh"]) {
     const acc = state.accounts[id];
     if (acc) opts.push(`<option value="${id}">${esc(acc.label)}</option>`);
@@ -1647,6 +2261,7 @@ function bindAuth() {
     // arahkan sesuai peran
     if (acc.role === "koordinator") location.hash = "#/divisi/" + acc.divId;
     else if (acc.role === "sekretaris") location.hash = "#/evaluasi";
+    else if (acc.role === "wali") location.hash = "#/divisi/kewaliasuhan";
   });
 
   $("#btn-account-close").addEventListener("click", () =>

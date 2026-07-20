@@ -68,3 +68,53 @@ create policy "anon all pengasuh_notes" on public.pengasuh_notes for all to anon
 
 drop policy if exists "anon all accounts" on public.accounts;
 create policy "anon all accounts" on public.accounts for all to anon using (true) with check (true);
+
+-- ============================================================
+-- Tambahan: Kewaliasuhan (daftar santri & aspek penilaian)
+-- Aman dijalankan berulang (idempotent) — cukup jalankan seluruh file ini lagi.
+-- ============================================================
+
+create table if not exists public.kewaliasuhan_aspects (
+  id text primary key,
+  name text not null,
+  order_no int not null default 0
+);
+
+create table if not exists public.kewaliasuhan_students (
+  id text primary key,
+  wali_id text not null,
+  name text not null,
+  order_no int not null default 0
+);
+
+create table if not exists public.kewaliasuhan_scores (
+  week_key text not null,
+  student_id text not null,
+  aspect_id text not null,
+  score text not null default '',
+  primary key (week_key, student_id, aspect_id)
+);
+
+create table if not exists public.kewaliasuhan_notes (
+  week_key text not null,
+  student_id text not null,
+  note text not null default '',
+  primary key (week_key, student_id)
+);
+
+alter table public.kewaliasuhan_aspects enable row level security;
+alter table public.kewaliasuhan_students enable row level security;
+alter table public.kewaliasuhan_scores enable row level security;
+alter table public.kewaliasuhan_notes enable row level security;
+
+drop policy if exists "anon all kewaliasuhan_aspects" on public.kewaliasuhan_aspects;
+create policy "anon all kewaliasuhan_aspects" on public.kewaliasuhan_aspects for all to anon using (true) with check (true);
+
+drop policy if exists "anon all kewaliasuhan_students" on public.kewaliasuhan_students;
+create policy "anon all kewaliasuhan_students" on public.kewaliasuhan_students for all to anon using (true) with check (true);
+
+drop policy if exists "anon all kewaliasuhan_scores" on public.kewaliasuhan_scores;
+create policy "anon all kewaliasuhan_scores" on public.kewaliasuhan_scores for all to anon using (true) with check (true);
+
+drop policy if exists "anon all kewaliasuhan_notes" on public.kewaliasuhan_notes;
+create policy "anon all kewaliasuhan_notes" on public.kewaliasuhan_notes for all to anon using (true) with check (true);
