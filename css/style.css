@@ -186,6 +186,9 @@ table.recap input.kw-score.grade-a, table.recap td.kw-cell.grade-a {
 }
 table.recap td.kw-cell { font-weight: 600; }
 
+.grade-legend { list-style: none; margin: 0 0 10px; padding: 0; color: var(--muted); font-size: .85rem; }
+.grade-legend li { margin-bottom: 2px; }
+
 .kendala-list { margin: 0; padding: 0; list-style: none; }
 .kendala-list li { border-left: 3px solid var(--gold); background: #fffbeb; padding: 8px 12px; border-radius: 0 8px 8px 0; margin-bottom: 8px; font-size: .87rem; }
 .kendala-list li .who { font-weight: 700; color: var(--gold); font-size: .78rem; display: block; }
