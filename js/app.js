@@ -1700,7 +1700,7 @@ function kwGroupCardHTML(waliId, weekKey, allowEdit) {
           <button class="btn btn-outline btn-print-kw" data-wali="${waliId}">🖨️ Cetak</button>
         </div>
       </div>
-      <div class="sub">🔴 Merah: di bawah 60 (kurang) = D; 🟡 Kuning: 60–74 (cukup) = C; 🟢 Hijau: 75–89 (baik) = B; 🟢 Hijau tua tebal: 90–100 (sangat baik) = A</div>
+      <div class="sub">A = 90–100 (sangat baik) 🟢 Hijau tua tebal; B = 75–89 (baik) 🟢 Hijau; C = 60–74 (cukup) 🟡 Kuning; D = di bawah 60 (kurang) 🔴 Merah</div>
       <div class="table-wrap">
         <table class="recap">
           <thead><tr><th>No</th><th>Nama Santri</th>${head}</tr></thead>
