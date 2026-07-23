@@ -107,9 +107,23 @@ function defaultAccounts() {
   return acc;
 }
 
-/* 11 id akun wali asuh: wali1..wali11 */
+/* Daftar id akun wali asuh yang benar-benar ada saat ini (dinamis — admin
+   dapat menambah/menghapus lewat tab Kelola Santri & Aspek). */
 function waliIds() {
-  return Array.from({ length: 11 }, (_, i) => "wali" + (i + 1));
+  return Object.keys(state.accounts)
+    .filter((id) => state.accounts[id].role === "wali")
+    .sort((a, b) => {
+      const na = parseInt(a.replace(/\D/g, ""), 10) || 0;
+      const nb = parseInt(b.replace(/\D/g, ""), 10) || 0;
+      return na - nb || a.localeCompare(b);
+    });
+}
+
+/* Id baru untuk wali asuh berikutnya, mis. "wali12" bila sudah ada wali1..wali11 */
+function nextWaliId() {
+  const nums = waliIds().map((id) => parseInt(id.replace(/\D/g, ""), 10) || 0);
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return "wali" + next;
 }
 
 /* ---------------- Autentikasi ---------------- */
@@ -661,6 +675,17 @@ function kewaliasuhanStats(weekKey) {
   };
 }
 
+/* Warna nilai ala rapor: merah (kurang) → kuning (cukup) → hijau (baik) → hijau tua (sangat baik) */
+function kwScoreGradeClass(v) {
+  if (v === "" || v === null || v === undefined) return "";
+  const n = Number(v);
+  if (Number.isNaN(n)) return "";
+  if (n < 60) return "grade-d";
+  if (n < 75) return "grade-c";
+  if (n < 90) return "grade-b";
+  return "grade-a";
+}
+
 function syncKwAspect(aspect) {
   queueSync("kw-aspect:" + aspect.id, () =>
     sbUpsert(
@@ -897,7 +922,7 @@ function kewaliasuhanDashboardCardHTML(wk, d) {
     <a class="division-card" href="#/divisi/${d.id}">
       <span class="icon">${d.icon}</span>
       <h3>Divisi ${esc(d.name)}</h3>
-      <div class="meta">${state.kewaliasuhan.aspects.length} aspek · ${nStudents} santri · 11 wali asuh</div>
+      <div class="meta">${state.kewaliasuhan.aspects.length} aspek · ${nStudents} santri · ${waliIds().length} wali asuh</div>
       ${
         nStudents
           ? `
@@ -1605,7 +1630,10 @@ function viewKewaliasuhanPenilaian(route) {
   }
   if (canManageKewaliasuhan()) {
     const ids = waliIds();
-    const selected = ids.includes(route.day) ? route.day : "wali1";
+    if (!ids.length) {
+      return `<div class="card"><p class="sub" style="margin:0">Belum ada akun Wali Asuh. Tambahkan di tab <b>Kelola Santri & Aspek</b>.</p></div>`;
+    }
+    const selected = ids.includes(route.day) ? route.day : ids[0];
     const options = ids
       .map(
         (id) =>
@@ -1620,9 +1648,11 @@ function viewKewaliasuhanPenilaian(route) {
       ${kwGroupCardHTML(selected, wk, true)}`;
   }
   // publik / peran lain: baca-saja, tampilkan semua kelompok
-  return waliIds()
-    .map((id) => kwGroupCardHTML(id, wk, false))
-    .join("");
+  const ids = waliIds();
+  if (!ids.length) {
+    return `<div class="card"><p class="sub" style="margin:0">Belum ada akun Wali Asuh yang dibentuk.</p></div>`;
+  }
+  return ids.map((id) => kwGroupCardHTML(id, wk, false)).join("");
 }
 
 function kwGroupCardHTML(waliId, weekKey, allowEdit) {
@@ -1647,9 +1677,10 @@ function kwGroupCardHTML(waliId, weekKey, allowEdit) {
       const cells = aspects
         .map((a) => {
           const val = getKwScore(weekKey, st.id, a.id);
+          const gradeClass = kwScoreGradeClass(val);
           return editable
-            ? `<td><input type="number" min="0" max="100" inputmode="numeric" class="kw-score" data-student="${st.id}" data-aspect="${a.id}" value="${val}"></td>`
-            : `<td>${val !== "" ? fmtNum(val) : ""}</td>`;
+            ? `<td><input type="number" min="0" max="100" inputmode="numeric" class="kw-score ${gradeClass}" data-student="${st.id}" data-aspect="${a.id}" value="${val}"></td>`
+            : `<td class="kw-cell ${gradeClass}">${val !== "" ? fmtNum(val) : ""}</td>`;
         })
         .join("");
       const note = getKwNote(weekKey, st.id);
@@ -1694,6 +1725,9 @@ function bindKewaliasuhanPenilaian(route) {
         if (String(n) !== v) inp.value = n;
         v = String(n);
       }
+      inp.classList.remove("grade-a", "grade-b", "grade-c", "grade-d");
+      const cls = kwScoreGradeClass(v);
+      if (cls) inp.classList.add(cls);
       setKwScore(wk, inp.dataset.student, inp.dataset.aspect, v);
     }),
   );
@@ -1723,10 +1757,12 @@ function viewKewaliasuhanKelola(route) {
     .join("");
 
   const ids = waliIds();
-  const selected = ids.includes(route.day) ? route.day : "wali1";
-  const students = state.kewaliasuhan.students
-    .filter((s) => s.waliId === selected)
-    .sort((a, b) => a.order - b.order);
+  const selected = ids.includes(route.day) ? route.day : ids[0];
+  const students = selected
+    ? state.kewaliasuhan.students
+        .filter((s) => s.waliId === selected)
+        .sort((a, b) => a.order - b.order)
+    : [];
   const studentRows = students
     .map(
       (s, i) => `
@@ -1737,12 +1773,18 @@ function viewKewaliasuhanKelola(route) {
     </tr>`,
     )
     .join("");
-  const waliAcc = state.accounts[selected];
-  const waliOptions = ids
-    .map(
-      (id) =>
-        `<option value="${id}" ${id === selected ? "selected" : ""}>${esc(state.accounts[id]?.label || id)}</option>`,
-    )
+  const waliAcc = selected ? state.accounts[selected] : null;
+  const waliManageRows = ids
+    .map((id) => {
+      const acc = state.accounts[id];
+      const n = state.kewaliasuhan.students.filter((s) => s.waliId === id).length;
+      return `
+    <tr data-wali="${id}" class="${id === selected ? "wali-row-active" : ""}">
+      <td>${esc(acc?.label || id)}</td>
+      <td>${n} santri</td>
+      <td><button class="btn btn-outline btn-sm btn-pilih-wali" data-wali="${id}">${id === selected ? "Terpilih" : "Kelola"}</button></td>
+    </tr>`;
+    })
     .join("");
 
   return `
@@ -1762,14 +1804,29 @@ function viewKewaliasuhanKelola(route) {
     </div>
 
     <div class="card">
-      <h2>Wali Asuh &amp; Santri Asuhan</h2>
-      <div class="coordinator-inline" style="margin-bottom:12px">
-        <label for="kw-wali-select"><b>Kelompok:</b></label>
-        <select id="kw-wali-select">${waliOptions}</select>
+      <h2>Akun Wali Asuh</h2>
+      <div class="sub">Setiap wali hanya bisa mengisi nilai kelompoknya sendiri. Tambah, ganti nama, atau hapus akun di sini.</div>
+      <div class="table-wrap">
+        <table class="prog-table">
+          <thead><tr><th>Nama Wali</th><th style="width:90px">Santri</th><th style="width:100px"></th></tr></thead>
+          <tbody>${waliManageRows || '<tr><td colspan="3" class="sub">Belum ada akun Wali Asuh.</td></tr>'}</tbody>
+        </table>
       </div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <input type="text" id="new-wali-name" placeholder="Nama Wali Asuh baru…" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
+        <button class="btn btn-primary" id="btn-add-wali">+ Tambah Wali Asuh</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Santri Asuhan${waliAcc ? " — " + esc(waliAcc.label) : ""}</h2>
+      ${
+        selected
+          ? `
       <div class="coordinator-inline" style="margin-bottom:12px">
         <label for="kw-wali-label"><b>Nama Wali:</b></label>
         <input type="text" id="kw-wali-label" value="${esc(waliAcc?.label || "")}">
+        <button class="btn btn-danger btn-sm" id="btn-del-wali" style="margin-left:auto">Hapus Akun Wali Ini</button>
       </div>
       <div class="table-wrap">
         <table class="prog-table">
@@ -1781,13 +1838,15 @@ function viewKewaliasuhanKelola(route) {
         <input type="text" id="new-student-name" placeholder="Nama santri baru…" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit">
         <button class="btn btn-primary" id="btn-add-student">Tambah</button>
       </div>
-      <p class="sub" style="margin-top:10px">Kata sandi awal akun wali: <code>${selected}2026</code> — segera minta wali menggantinya lewat menu akun 👤. Admin dapat mereset lewat menu 👤 → Reset Kata Sandi Akun.</p>
+      <p class="sub" style="margin-top:10px">Kata sandi awal akun wali: <code>${selected}2026</code> — segera minta wali menggantinya lewat menu akun 👤. Admin dapat mereset lewat menu 👤 → Reset Kata Sandi Akun.</p>`
+          : `<p class="sub" style="margin:0">Tambahkan akun Wali Asuh terlebih dahulu di atas untuk mulai mengisi santri asuhan.</p>`
+      }
     </div>`;
 }
 
 function bindKewaliasuhanKelola(route) {
   const ids = waliIds();
-  const selected = ids.includes(route.day) ? route.day : "wali1";
+  const selected = ids.includes(route.day) ? route.day : ids[0];
 
   $("#btn-add-aspect").addEventListener("click", () => {
     const inp = $("#new-aspect-name");
@@ -1826,16 +1885,64 @@ function bindKewaliasuhanKelola(route) {
     });
   });
 
-  $("#kw-wali-select").addEventListener("change", (e) => {
-    location.hash = `#/divisi/kewaliasuhan/kelola/${e.target.value}`;
+  $$(".btn-pilih-wali").forEach((b) =>
+    b.addEventListener("click", () => {
+      location.hash = `#/divisi/kewaliasuhan/kelola/${b.dataset.wali}`;
+    }),
+  );
+
+  $("#btn-add-wali").addEventListener("click", async () => {
+    const inp = $("#new-wali-name");
+    const name = inp.value.trim();
+    if (!name) {
+      toast("Isi nama wali asuh terlebih dahulu");
+      inp.focus();
+      return;
+    }
+    const id = nextWaliId();
+    const acc = { user: id, label: name, role: "wali", divId: "kewaliasuhan", plain: id + "2026" };
+    state.accounts[id] = acc;
+    try {
+      await syncAccount(id);
+    } catch (e) {
+      delete state.accounts[id];
+      toast("Gagal menambah wali asuh — periksa koneksi lalu coba lagi");
+      return;
+    }
+    toast(`Wali Asuh "${name}" ditambahkan. Sandi awal: ${acc.plain}`);
+    location.hash = `#/divisi/kewaliasuhan/kelola/${id}`;
   });
 
-  $("#kw-wali-label").addEventListener("input", (e) => {
-    const acc = state.accounts[selected];
-    if (!acc) return;
-    acc.label = e.target.value;
-    queueSync("kw-wali-label:" + selected, () => syncAccount(selected));
-  });
+  const kwWaliLabel = $("#kw-wali-label");
+  if (kwWaliLabel)
+    kwWaliLabel.addEventListener("input", (e) => {
+      const acc = state.accounts[selected];
+      if (!acc) return;
+      acc.label = e.target.value;
+      queueSync("kw-wali-label:" + selected, () => syncAccount(selected));
+    });
+
+  const btnDelWali = $("#btn-del-wali");
+  if (btnDelWali)
+    btnDelWali.addEventListener("click", async () => {
+      const nStudents = state.kewaliasuhan.students.filter((s) => s.waliId === selected).length;
+      if (nStudents > 0) {
+        toast(`Pindahkan atau hapus dulu ${nStudents} santri kelompok ini sebelum menghapus akun wali`);
+        return;
+      }
+      const label = state.accounts[selected]?.label || selected;
+      if (!confirm(`Hapus akun Wali Asuh "${label}"? Akun ini tidak akan bisa masuk lagi.`)) return;
+      try {
+        await sb(`/accounts?id=eq.${selected}`, { method: "DELETE" });
+      } catch (e) {
+        toast("Gagal menghapus wali asuh — periksa koneksi lalu coba lagi");
+        return;
+      }
+      delete state.accounts[selected];
+      toast("Akun Wali Asuh dihapus");
+      if (location.hash === "#/divisi/kewaliasuhan/kelola") render();
+      else location.hash = "#/divisi/kewaliasuhan/kelola";
+    });
 
   $$("tr[data-student]").forEach((tr) => {
     const student = state.kewaliasuhan.students.find((s) => s.id === tr.dataset.student);
@@ -1855,21 +1962,23 @@ function bindKewaliasuhanKelola(route) {
     });
   });
 
-  $("#btn-add-student").addEventListener("click", () => {
-    const inp = $("#new-student-name");
-    const name = inp.value.trim();
-    if (!name) {
-      toast("Isi nama santri terlebih dahulu");
-      inp.focus();
-      return;
-    }
-    const order = state.kewaliasuhan.students.filter((s) => s.waliId === selected).length;
-    const student = { id: "santri-" + Date.now(), waliId: selected, name, order };
-    state.kewaliasuhan.students.push(student);
-    syncKwStudent(student);
-    render();
-    toast('Santri "' + name + '" ditambahkan');
-  });
+  const btnAddStudent = $("#btn-add-student");
+  if (btnAddStudent)
+    btnAddStudent.addEventListener("click", () => {
+      const inp = $("#new-student-name");
+      const name = inp.value.trim();
+      if (!name) {
+        toast("Isi nama santri terlebih dahulu");
+        inp.focus();
+        return;
+      }
+      const order = state.kewaliasuhan.students.filter((s) => s.waliId === selected).length;
+      const student = { id: "santri-" + Date.now(), waliId: selected, name, order };
+      state.kewaliasuhan.students.push(student);
+      syncKwStudent(student);
+      render();
+      toast('Santri "' + name + '" ditambahkan');
+    });
 }
 
 function printKewaliasuhan(waliId, weekKey) {

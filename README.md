@@ -57,9 +57,9 @@ layar utama, tanpa address bar) dan otomatis selalu versi terbaru.
   sebagai data statis. Tidak bisa mengisi atau mengubah apa pun.
 - **Koordinator divisi** (8 divisi selain Kewaliasuhan): setelah masuk lewat tombol
   **🔑 Masuk**, hanya dapat mengisi laporan dan mengelola program **divisinya sendiri**.
-- **Wali Asuh** (khusus Kewaliasuhan, 11 akun): hanya dapat mengisi nilai & catatan
-  santri **kelompok asuhannya sendiri**. Tidak bisa menambah/menghapus santri atau
-  aspek penilaian — itu wewenang Admin.
+- **Wali Asuh** (khusus Kewaliasuhan): hanya dapat mengisi nilai & catatan santri
+  **kelompok asuhannya sendiri**. Tidak bisa menambah/menghapus santri, aspek
+  penilaian, atau akun wali lain — itu wewenang Admin.
 - **Sekretaris Pesantren**: mengisi Catatan Rapat Evaluasi mingguan (halaman
   Evaluasi Mingguan). Tidak dapat mengubah laporan divisi.
 - **Pengasuh**: memberikan catatan/arahan langsung pada tiap program per divisi
@@ -67,7 +67,8 @@ layar utama, tanpa address bar) dan otomatis selalu versi terbaru.
   pada form mingguan). Tidak dapat mengubah laporan divisi.
 - **Admin / Pengurus Harian**: dapat mengisi semua divisi, menulis Catatan Rapat
   Evaluasi dan Catatan Pengasuh, mereset kata sandi akun, serta mengelola daftar
-  santri, aspek penilaian, dan nama tiap Wali Asuh di Kewaliasuhan.
+  santri, aspek penilaian, dan **akun Wali Asuh** (tambah/ganti nama/hapus) di
+  Kewaliasuhan — lihat bagian Fitur di bawah.
 
 Akun bawaan (kata sandi awal = nama akun + 2026, **segera ganti** lewat menu akun 👤):
 
@@ -81,7 +82,7 @@ Akun bawaan (kata sandi awal = nama akun + 2026, **segera ganti** lewat menu aku
 | Koordinator Kebersihan (`kebersihan`) | `kebersihan2026` |
 | Koordinator Kesehatan (`kesehatan`) | `kesehatan2026` |
 | Koordinator Sarana dan Prasarana (`sarpras`) | `sarpras2026` |
-| Wali Asuh 1–11 (`wali1` s.d. `wali11`) | `wali12026` s.d. `wali112026` |
+| Wali Asuh 1–11 (`wali1` s.d. `wali11`, bisa bertambah) | `wali12026` s.d. `wali112026` |
 | Sekretaris Pesantren (`sekretaris`) | `sekretaris2026` |
 | Pengasuh (`pengasuh`) | `pengasuh2026` |
 | Admin / Pengurus Harian (`admin`) | `admin2026` |
@@ -100,9 +101,12 @@ Akun bawaan (kata sandi awal = nama akun + 2026, **segera ganti** lewat menu aku
 - Divisi lain (kecuali Kewaliasuhan): koordinator mengisi sendiri daftar program +
   hari pelaksanaannya di tab **Kelola Program**.
 - **Kewaliasuhan** memakai format berbeda: **daftar nama santri × aspek penilaian**
-  (skala 0–100 per aspek + catatan), bukan program kerja harian. Admin mengelola
-  daftar aspek dan santri tiap kelompok di tab **⚙️ Kelola Santri & Aspek**; 11 akun
-  Wali Asuh masing-masing hanya mengisi nilai kelompok asuhannya sendiri.
+  (skala 0–100 per aspek + catatan), bukan program kerja harian. Nilai yang diisi
+  otomatis diwarnai seperti rapor sekolah (merah <60, kuning 60–74, hijau 75–89,
+  hijau tua ≥90). Admin mengelola daftar aspek, santri tiap kelompok, serta akun
+  Wali Asuh itu sendiri (tambah wali baru, ganti nama, atau hapus bila sudah
+  tidak ada santri di kelompoknya) di tab **⚙️ Kelola Santri & Aspek** — jumlah
+  wali tidak dibatasi 11, admin bebas menambah sesuai kebutuhan.
 - **Laporan Harian**: pekan dimulai **Sabtu** s.d. Jum'at; isian tersimpan otomatis.
 - **Rekap Mingguan**: terisi otomatis dari laporan harian, lengkap dengan rata-rata dan
   rangkuman kendala.
